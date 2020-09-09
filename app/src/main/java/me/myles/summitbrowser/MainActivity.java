@@ -1,5 +1,6 @@
 package me.myles.summitbrowser;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -10,13 +11,18 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,12 +35,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     Button send;
     TextView URL;
     WebView webView;
-    final String number = "6097792343";
+    RelativeLayout loading;
+
+    final String number = "2058902792";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.SEND_SMS, Manifest.permission.READ_SMS},1);
-
 
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
 
@@ -44,31 +51,48 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         send = (Button)findViewById(R.id.send);
         URL = (TextView)findViewById(R.id.URL);
         webView = (WebView)findViewById(R.id.webView);
+        loading = (RelativeLayout) findViewById(R.id.loadingPanel);
+
+
         URL.setText("");
 
         send.setOnClickListener(this);
+
+        webView.setWebViewClient(new WebViewClient() {
+            @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if(ContextCompat.checkSelfPermission(getBaseContext(), "android.permission.READ_SMS") == PackageManager.PERMISSION_GRANTED) {
+                    sendSMS("" + request.getUrl());
+                    Log.d("Success", "Succ");
+                    MMSTask mms = new MMSTask();
+                    mms.setContext(MainActivity.this);
+                    mms.execute(MainActivity.this);
+                    setLoading(true);
+                }
+                return true;
+            }
+        });
+
+        setLoading(false);
+    }
+
+    public void onClick(View view){
+        sendSMS("" + URL.getText());
         if(ContextCompat.checkSelfPermission(getBaseContext(), "android.permission.READ_SMS") == PackageManager.PERMISSION_GRANTED) {
             Log.d("Success", "Succ");
             MMSTask mms = new MMSTask();
             mms.setContext(this);
             mms.execute(this);
+            setLoading(true);
         }
-
-
-
-
-
-
     }
 
-    public void onClick(View view){
-        String message = "" + URL.getText();
+    public void sendSMS(String message){
         SmsManager smsManager = SmsManager.getDefault();
         smsManager.sendTextMessage(number, null, message, null, null);
         URL.setText("");
     }
-
-
     public String getHTML(Bitmap image){
         int pich = image.getHeight();
         int picw = image.getWidth();
@@ -107,7 +131,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             html = html + threes;
         }
 
-        return html.substring(6);
+        Log.d("html", html.substring(0, 6));
+        return html;
     }
 
     public void loadHTML(String html){
@@ -120,7 +145,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             public void run() {
                 //Log.d("HTML", "Loading html!");
 
-                webView.getSettings().setJavaScriptEnabled(false);
+                webView.getSettings().setJavaScriptEnabled(true);
                 //webView.loadDataWithBaseURL(null, readFromFile(MainActivity.this), "text/html", "utf-8", null);
                 webView.loadDataWithBaseURL(null, html2, "text/html", "UTF-8", null);
             }
@@ -137,6 +162,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    public void setLoading(boolean load){
+        if (load){
+            loading.setVisibility(View.VISIBLE);
+            webView.setVisibility(View.GONE);
+        }
+        else{
+            loading.setVisibility(View.GONE);
+            webView.setVisibility(View.VISIBLE);
+        }
+    }
 
 
 
